@@ -990,7 +990,34 @@ async function loadNearby() {
       </div>`;
     return;
   }
-  if (!State.position) return;
+
+  // Falls nach Reload keine Position im State ist: jetzt holen
+  if (!State.position) {
+    list.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">◉</div>
+        <h3>Standort wird geholt...</h3>
+        <p>Einen Moment.</p>
+      </div>`;
+    try {
+      const pos = await new Promise((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+      );
+      State.position = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      // Position auch in DB updaten und watcher starten falls noch nicht
+      await sb.rpc('update_location', { p_lat: State.position.lat, p_lng: State.position.lng });
+      if (!State.watchId) startWatchingLocation();
+    } catch (e) {
+      list.innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">⚠</div>
+          <h3>Standort nicht verfügbar</h3>
+          <p>Toggle einmal aus und wieder an, dann nochmal Standort erlauben.</p>
+        </div>`;
+      return;
+    }
+  }
+
   const { data, error } = await sb.rpc('find_nearby', {
     p_lat: State.position.lat, p_lng: State.position.lng, p_radius_m: 5000
   });
