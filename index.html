@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0f" />
+<title>Shoot Your Shot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg-2: #131320;
+    --surface: #1a1a2e;
+    --surface-2: #22223a;
+    --border: #2a2a45;
+    --text: #f5f5fa;
+    --text-dim: #9b9bb8;
+    --text-faint: #5d5d7a;
+    --accent: #ff3366;
+    --accent-2: #ff6b6b;
+    --gold: #ffb84d;
+    --green: #4ade80;
+    --shadow: 0 12px 40px rgba(255, 51, 102, 0.15);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow-x: hidden; }
+  body {
+    font-family: 'Fraunces', Georgia, serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1.5;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(255, 51, 102, 0.18), transparent 40%),
+      radial-gradient(circle at 85% 85%, rgba(255, 184, 77, 0.10), transparent 45%);
+    z-index: 0;
+  }
+  #app { position: relative; z-index: 1; min-height: 100vh; max-width: 480px; margin: 0 auto; }
+
+  /* === Typo === */
+  h1, h2, h3 { font-family: 'Fraunces', serif; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+  h1 { font-size: 2.4rem; }
+  h2 { font-size: 1.6rem; }
+  h3 { font-size: 1.15rem; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .dim { color: var(--text-dim); }
+  .faint { color: var(--text-faint); }
+
+  /* === Buttons === */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 14px 22px;
+    border-radius: 999px;
+    border: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600; font-size: 0.85rem;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    cursor: pointer; transition: transform 0.15s, opacity 0.2s;
+    background: var(--accent); color: white;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn.gold { background: var(--gold); color: #1a1100; }
+  .btn.full { width: 100%; }
+  .btn.lg { padding: 18px 28px; font-size: 0.9rem; }
+  .btn-ico {
+    background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+    width: 44px; height: 44px; padding: 0; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+
+  /* === Inputs === */
+  input, textarea, select {
+    width: 100%; padding: 14px 16px;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-radius: 14px;
+    font-family: 'Fraunces', serif; font-size: 1rem;
+    outline: none; transition: border-color 0.2s;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; }
+  .field { margin-bottom: 16px; }
+
+  /* === Layout === */
+  .view { display: none; padding: 24px 20px 100px; min-height: 100vh; }
+  .view.active { display: block; animation: fade 0.3s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* === Top Bar === */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    background: rgba(10, 10, 15, 0.7);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar h1 { font-size: 1.1rem; font-weight: 800; }
+  .logo { font-family: 'Fraunces', serif; font-style: italic; font-weight: 800; font-size: 1.3rem; }
+  .logo span { color: var(--accent); }
+
+  /* === Bottom Nav === */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    max-width: 480px; margin: 0 auto;
+    background: rgba(19, 19, 32, 0.92);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    display: flex; justify-content: space-around; z-index: 20;
+  }
+  .nav-item {
+    flex: 1; padding: 8px 4px;
+    background: none; border: none; cursor: pointer;
+    color: var(--text-faint);
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.65rem;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    position: relative;
+  }
+  .nav-item.active { color: var(--accent); }
+  .nav-item .badge {
+    position: absolute; top: 4px; right: calc(50% - 18px);
+    background: var(--accent); color: white;
+    font-size: 0.6rem; font-weight: 700;
+    padding: 2px 6px; border-radius: 999px;
+    min-width: 18px; text-align: center;
+  }
+  .nav-icon { font-size: 1.4rem; line-height: 1; }
+
+  /* === Cards === */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+
+  /* === Landing/Auth === */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 40px 24px calc(40px + env(safe-area-inset-bottom));
+  }
+  .hero-art {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+  }
+  .hero h1 {
+    font-size: 3.6rem; font-style: italic; font-weight: 800;
+    line-height: 0.95; letter-spacing: -0.04em;
+  }
+  .hero h1 .accent { color: var(--accent); }
+  .hero .tag {
+    margin-top: 24px; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--text-dim);
+  }
+  .hero-bullets {
+    margin-top: 32px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .hero-bullet {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 0.95rem; color: var(--text-dim);
+  }
+  .hero-bullet::before {
+    content: ''; width: 6px; height: 6px; background: var(--accent); border-radius: 50%;
+  }
+
+  /* === Radar === */
+  .visibility-card {
+    background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: 24px; padding: 20px;
+    margin-bottom: 20px;
+    position: relative; overflow: hidden;
+  }
+  .visibility-card.on {
+    border-color: var(--accent);
+    box-shadow: var(--shadow);
+  }
+  .visibility-card.on::after {
+    content: ''; position: absolute; inset: -2px;
+    background: radial-gradient(circle at 50% 0%, rgba(255,51,102,0.3), transparent 60%);
+    pointer-events: none;
+  }
+  .vis-row { display: flex; align-items: center; justify-content: space-between; }
+  .vis-status { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); }
+  .vis-status.on { color: var(--accent); }
+  .vis-status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); margin-right: 8px; }
+  .vis-status.on .dot { background: var(--accent); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .vis-time { margin-top: 8px; font-size: 0.85rem; color: var(--text-dim); }
+
+  /* === Toggle === */
+  .toggle { position: relative; width: 56px; height: 32px; }
+  .toggle input { display: none; }
+  .toggle .slider {
+    position: absolute; inset: 0; background: var(--surface-2);
+    border-radius: 999px; cursor: pointer; transition: background 0.2s;
+    border: 1px solid var(--border);
+  }
+  .toggle .slider::before {
+    content: ''; position: absolute; left: 3px; top: 3px;
+    width: 24px; height: 24px; background: var(--text-dim);
+    border-radius: 50%; transition: transform 0.2s, background 0.2s;
+  }
+  .toggle input:checked + .slider { background: var(--accent); border-color: var(--accent); }
+  .toggle input:checked + .slider::before { transform: translateX(24px); background: white; }
+
+  /* === Person Card (Radar) === */
+  .person-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 16px;
+    margin-bottom: 12px;
+    display: flex; gap: 14px; align-items: center;
+  }
+  .avatar {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--gold));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Fraunces', serif; font-weight: 800; font-size: 1.4rem;
+    color: white; flex-shrink: 0;
+    background-size: cover; background-position: center;
+  }
+  .avatar.lg { width: 96px; height: 96px; font-size: 2rem; }
+  .person-info { flex: 1; min-width: 0; }
+  .person-name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 1.1rem; }
+  .person-meta { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+  .person-bio { font-size: 0.85rem; color: var(--text-dim); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .person-actions { display: flex; gap: 8px; margin-left: auto; }
+
+  /* === Empty States === */
+  .empty {
+    text-align: center; padding: 60px 20px;
+    color: var(--text-dim);
+  }
+  .empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.4; }
+  .empty h3 { color: var(--text); margin-bottom: 8px; }
+  .empty p { font-size: 0.9rem; }
+
+  /* === Modal === */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    z-index: 100; display: none;
+    align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; animation: fade 0.2s; }
+  .modal {
+    background: var(--bg-2); width: 100%; max-width: 480px;
+    border-radius: 28px 28px 0 0;
+    padding: 28px 24px calc(28px + env(safe-area-inset-bottom));
+    border: 1px solid var(--border); border-bottom: none;
+    animation: slideUp 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: none; } }
+  .modal-handle {
+    width: 40px; height: 4px; background: var(--border);
+    border-radius: 999px; margin: 0 auto 20px;
+  }
+
+  /* === Action chips (modal) === */
+  .action-chips { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .action-chip {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 18px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s;
+  }
+  .action-chip:active { transform: scale(0.98); }
+  .action-chip:hover { border-color: var(--accent); }
+  .action-chip-icon { font-size: 1.6rem; }
+  .action-chip-text { flex: 1; }
+  .action-chip-title { font-weight: 600; font-size: 1rem; }
+  .action-chip-desc { font-size: 0.8rem; color: var(--text-dim); }
+
+  /* === Chat === */
+  .chat-list .person-card { cursor: pointer; }
+  .chat-list .person-card:hover { border-color: var(--accent); }
+  .last-msg { font-size: 0.85rem; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .chat-view {
+    display: flex; flex-direction: column;
+    height: 100vh; padding: 0;
+  }
+  .chat-header {
+    position: sticky; top: 0; z-index: 5;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    background: rgba(10, 10, 15, 0.7);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+  }
+  .chat-messages {
+    flex: 1; overflow-y: auto;
+    padding: 20px 16px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .msg {
+    max-width: 78%; padding: 10px 14px;
+    border-radius: 18px; font-size: 0.95rem;
+    word-wrap: break-word; line-height: 1.4;
+  }
+  .msg.me { align-self: flex-end; background: var(--accent); color: white; border-bottom-right-radius: 6px; }
+  .msg.them { align-self: flex-start; background: var(--surface-2); color: var(--text); border-bottom-left-radius: 6px; }
+  .msg-time { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; opacity: 0.7; margin-top: 2px; }
+  .chat-input-bar {
+    position: sticky; bottom: 0;
+    background: var(--bg-2); border-top: 1px solid var(--border);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    display: flex; gap: 8px;
+  }
+  .chat-input-bar input { border-radius: 999px; }
+
+  /* === Inbox / Shots === */
+  .shot-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 16px; margin-bottom: 12px;
+  }
+  .shot-type {
+    display: inline-block; padding: 4px 10px;
+    background: var(--surface-2); border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.65rem;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-dim); margin-bottom: 10px;
+  }
+  .shot-type.poke { color: var(--accent); }
+  .shot-type.save { color: var(--gold); }
+  .shot-type.drink { color: var(--green); }
+  .shot-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+  /* === Toast === */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--surface-2); color: var(--text);
+    padding: 12px 20px; border-radius: 999px;
+    border: 1px solid var(--border);
+    z-index: 200; font-size: 0.9rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    animation: toastIn 0.2s, toastOut 0.3s 2.5s forwards;
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translate(-50%, -10px); } }
+  @keyframes toastOut { to { opacity: 0; transform: translate(-50%, -10px); } }
+
+  /* === Settings === */
+  .setting-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+  }
+  .setting-row:last-child { border: none; }
+  .danger { color: var(--accent-2); }
+
+  /* === Pill checkboxes (gender) === */
+  .pill-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    padding: 10px 16px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 999px; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-dim); transition: all 0.15s;
+  }
+  .pill.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  /* === Misc === */
+  .row { display: flex; gap: 8px; align-items: center; }
+  .spacer { flex: 1; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+  .small { font-size: 0.8rem; }
+  .center { text-align: center; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============================ LANDING ============================ -->
+  <div class="view active" id="view-landing">
+    <div class="hero">
+      <div class="hero-art">
+        <h1><em>shoot</em><br/>your<br/><span class="accent">shot.</span></h1>
+        <div class="tag">// dating ohne smalltalk-marathon</div>
+        <div class="hero-bullets">
+          <div class="hero-bullet">Sieh wer im 30m-Radius gerade auch sichtbar ist</div>
+          <div class="hero-bullet">Stups jemanden an oder schick einen Drink</div>
+          <div class="hero-bullet">24h Zeit zum Anschreiben – beidseitig</div>
+          <div class="hero-bullet">Nur sichtbar wenn du es willst. Auto-aus nach 2h</div>
+        </div>
+      </div>
+      <div>
+        <button class="btn lg full" onclick="showAuth('signup')">Account erstellen</button>
+        <button class="btn ghost full" style="margin-top:12px" onclick="showAuth('login')">Schon dabei? Einloggen</button>
+        <p class="small dim center" style="margin-top:16px">
+          Mit der Registrierung akzeptierst du unsere AGB &amp; Datenschutzerklärung.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ AUTH ============================ -->
+  <div class="view" id="view-auth">
+    <div class="topbar">
+      <button class="btn-ico" onclick="navigate('landing')">←</button>
+      <span class="logo">shoot<span>.</span></span>
+      <div style="width:44px"></div>
+    </div>
+    <div style="padding-top:24px">
+      <h2 id="auth-title">Anmelden</h2>
+      <p class="dim small" style="margin-top:8px" id="auth-sub">Willkommen zurück.</p>
+
+      <div style="margin-top:28px">
+        <div class="field">
+          <label>E-Mail</label>
+          <input type="email" id="auth-email" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label>Passwort</label>
+          <input type="password" id="auth-password" autocomplete="current-password" />
+        </div>
+        <button class="btn full lg" id="auth-submit" onclick="doAuth()">Los geht's</button>
+        <p class="small center dim" style="margin-top:16px">
+          <a href="#" onclick="toggleAuthMode(event)" id="auth-switch">Noch keinen Account? Registrieren</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ ONBOARDING ============================ -->
+  <div class="view" id="view-onboarding">
+    <div class="topbar">
+      <span class="logo">shoot<span>.</span></span>
+      <span class="mono small dim">SCHRITT 1/1</span>
+    </div>
+    <div style="padding-top:24px">
+      <h2>Erzähl was über dich</h2>
+      <p class="dim small" style="margin-top:8px">Das sehen andere wenn du sichtbar bist.</p>
+
+      <div style="margin-top:28px">
+        <div class="field">
+          <label>Vorname (oder Nickname)</label>
+          <input type="text" id="ob-name" maxlength="40" placeholder="z.B. Lena" />
+        </div>
+        <div class="field">
+          <label>Alter</label>
+          <input type="number" id="ob-age" min="18" max="99" placeholder="25" />
+        </div>
+        <div class="field">
+          <label>Über mich (optional)</label>
+          <textarea id="ob-bio" maxlength="300" rows="3" placeholder="Kaffee, Klettern, dumme Wortspiele."></textarea>
+        </div>
+        <div class="field">
+          <label>Ich bin</label>
+          <div class="pill-group" id="ob-gender">
+            <div class="pill" data-val="female">weiblich</div>
+            <div class="pill" data-val="male">männlich</div>
+            <div class="pill" data-val="diverse">divers</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Mich interessieren (mehrfach möglich)</label>
+          <div class="pill-group" id="ob-interest">
+            <div class="pill" data-val="female">Frauen</div>
+            <div class="pill" data-val="male">Männer</div>
+            <div class="pill" data-val="diverse">Diverse</div>
+          </div>
+        </div>
+        <button class="btn full lg" onclick="saveOnboarding()">Profil speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ MAIN APP VIEWS ============================ -->
+
+  <!-- RADAR -->
+  <div class="view" id="view-radar">
+    <div class="topbar">
+      <span class="logo">shoot<span>.</span></span>
+      <button class="btn-ico" onclick="navigate('settings')" title="Einstellungen">⚙</button>
+    </div>
+
+    <div class="visibility-card" id="vis-card">
+      <div class="vis-row">
+        <div>
+          <div class="vis-status" id="vis-status"><span class="dot"></span>Unsichtbar</div>
+          <div class="vis-time mono small" id="vis-time"></div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="vis-toggle" onchange="toggleVisibility(this.checked)" />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <p class="small dim" style="margin-top:14px">
+        Nur wenn du sichtbar bist, siehst du andere – und sie dich. Auto-aus nach 2 Stunden.
+      </p>
+    </div>
+
+    <div class="row" style="margin: 8px 4px 16px;">
+      <h3>In der Nähe</h3>
+      <span class="spacer"></span>
+      <button class="btn-ico" onclick="loadNearby()" title="Aktualisieren">↻</button>
+    </div>
+
+    <div id="nearby-list"></div>
+  </div>
+
+  <!-- INBOX / SHOTS -->
+  <div class="view" id="view-inbox">
+    <div class="topbar">
+      <h1>Inbox</h1>
+      <div style="width:44px"></div>
+    </div>
+    <div style="padding-top:8px">
+      <h3 style="margin-bottom:12px">Eingehende Shots</h3>
+      <div id="inbox-incoming"></div>
+      <hr/>
+      <h3 style="margin-bottom:12px">Meine Shots</h3>
+      <div id="inbox-outgoing"></div>
+    </div>
+  </div>
+
+  <!-- MATCHES / CHATS -->
+  <div class="view" id="view-matches">
+    <div class="topbar">
+      <h1>Chats</h1>
+      <div style="width:44px"></div>
+    </div>
+    <div class="chat-list" id="match-list" style="padding-top:8px"></div>
+  </div>
+
+  <!-- CHAT (single) -->
+  <div class="view chat-view" id="view-chat">
+    <div class="chat-header">
+      <button class="btn-ico" onclick="navigate('matches')">←</button>
+      <div class="avatar" id="chat-avatar" style="width:40px;height:40px;font-size:1rem"></div>
+      <div>
+        <div style="font-weight:600" id="chat-name"></div>
+        <div class="small dim mono" id="chat-meta"></div>
+      </div>
+      <span class="spacer"></span>
+      <button class="btn-ico" onclick="reportPartner()" title="Melden">⚠</button>
+    </div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input-bar">
+      <input type="text" id="chat-input" placeholder="Nachricht schreiben..." maxlength="1000" onkeydown="if(event.key==='Enter')sendMessage()"/>
+      <button class="btn" onclick="sendMessage()">→</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="view" id="view-settings">
+    <div class="topbar">
+      <button class="btn-ico" onclick="navigate('radar')">←</button>
+      <h1 style="font-size:1.1rem">Einstellungen</h1>
+      <div style="width:44px"></div>
+    </div>
+    <div style="padding-top:16px">
+      <div class="card">
+        <div class="row" style="gap:14px;margin-bottom:14px">
+          <div class="avatar lg" id="set-avatar"></div>
+          <div>
+            <div style="font-weight:600;font-size:1.1rem" id="set-name"></div>
+            <div class="small dim" id="set-meta"></div>
+          </div>
+        </div>
+        <button class="btn ghost full" onclick="navigate('edit-profile')">Profil bearbeiten</button>
+      </div>
+
+      <div class="card">
+        <div class="setting-row">
+          <span>Sichtbarkeit aktiv</span>
+          <span class="mono small" id="set-vis-status">--</span>
+        </div>
+        <div class="setting-row">
+          <span>E-Mail</span>
+          <span class="mono small dim" id="set-email">--</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:12px">Rechtliches</h3>
+        <div class="setting-row" onclick="alert('Impressum: TODO')" style="cursor:pointer">
+          <span>Impressum</span><span class="dim">→</span>
+        </div>
+        <div class="setting-row" onclick="alert('Datenschutz: TODO')" style="cursor:pointer">
+          <span>Datenschutz</span><span class="dim">→</span>
+        </div>
+        <div class="setting-row" onclick="alert('AGB: TODO')" style="cursor:pointer">
+          <span>AGB</span><span class="dim">→</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <button class="btn ghost full" onclick="logout()">Abmelden</button>
+        <button class="btn ghost full danger" onclick="deleteAccount()" style="margin-top:8px;color:var(--accent)">Account löschen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT PROFILE (uses onboarding shape) -->
+  <div class="view" id="view-edit-profile">
+    <div class="topbar">
+      <button class="btn-ico" onclick="navigate('settings')">←</button>
+      <h1 style="font-size:1.1rem">Profil bearbeiten</h1>
+      <div style="width:44px"></div>
+    </div>
+    <div style="padding-top:16px">
+      <div class="field">
+        <label>Vorname</label>
+        <input type="text" id="ep-name" maxlength="40" />
+      </div>
+      <div class="field">
+        <label>Alter</label>
+        <input type="number" id="ep-age" min="18" max="99" />
+      </div>
+      <div class="field">
+        <label>Über mich</label>
+        <textarea id="ep-bio" maxlength="300" rows="3"></textarea>
+      </div>
+      <div class="field">
+        <label>Mich interessieren</label>
+        <div class="pill-group" id="ep-interest">
+          <div class="pill" data-val="female">Frauen</div>
+          <div class="pill" data-val="male">Männer</div>
+          <div class="pill" data-val="diverse">Diverse</div>
+        </div>
+      </div>
+      <button class="btn full lg" onclick="saveProfileEdits()">Speichern</button>
+    </div>
+  </div>
+
+  <!-- ============================ BOTTOM NAV ============================ -->
+  <div class="bottom-nav" id="bottom-nav" style="display:none">
+    <button class="nav-item" data-target="radar" onclick="navigate('radar')">
+      <span class="nav-icon">◉</span>
+      <span>Radar</span>
+    </button>
+    <button class="nav-item" data-target="inbox" onclick="navigate('inbox')">
+      <span class="nav-icon">✦</span>
+      <span>Inbox</span>
+      <span class="badge" id="badge-inbox" style="display:none">0</span>
+    </button>
+    <button class="nav-item" data-target="matches" onclick="navigate('matches')">
+      <span class="nav-icon">✉</span>
+      <span>Chats</span>
+      <span class="badge" id="badge-chats" style="display:none">0</span>
+    </button>
+  </div>
+
+  <!-- ============================ MODALS ============================ -->
+  <!-- Action Modal: poke / save / drink -->
+  <div class="modal-overlay" id="modal-action">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="row" style="gap:14px;margin-bottom:8px">
+        <div class="avatar" id="modal-avatar"></div>
+        <div>
+          <div style="font-weight:600;font-size:1.1rem" id="modal-name"></div>
+          <div class="small dim mono" id="modal-meta"></div>
+        </div>
+      </div>
+      <p class="small dim" id="modal-bio"></p>
+
+      <div class="action-chips">
+        <div class="action-chip" onclick="performShot('poke')">
+          <span class="action-chip-icon">👋</span>
+          <div class="action-chip-text">
+            <div class="action-chip-title">Anstupsen</div>
+            <div class="action-chip-desc">Niedrigschwelliger Hi.</div>
+          </div>
+        </div>
+        <div class="action-chip" onclick="performShot('save')">
+          <span class="action-chip-icon">⏱</span>
+          <div class="action-chip-text">
+            <div class="action-chip-title">24h merken</div>
+            <div class="action-chip-desc">Falls ihr euch verpasst – kannst noch 24h schreiben.</div>
+          </div>
+        </div>
+        <div class="action-chip" onclick="performShot('drink')">
+          <span class="action-chip-icon">🥂</span>
+          <div class="action-chip-text">
+            <div class="action-chip-title">Drink ausgeben</div>
+            <div class="action-chip-desc">5€ – sie bekommt's wenn sie annimmt. (Demo: keine Zahlung)</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn ghost full" style="margin-top:14px" onclick="closeModal('modal-action')">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// CONFIG
+// ============================================================================
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';      // <- TODO: anpassen
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';     // <- TODO: anpassen
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// State
+const State = {
+  user: null,
+  profile: null,
+  presence: null,
+  position: null, // { lat, lng }
+  watchId: null,
+  visTimer: null,
+  currentMatch: null, // { id, partnerId, partnerName, partnerPhoto }
+  currentTarget: null, // user object opened in action modal
+  msgChannel: null,
+};
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+function $(id) { return document.getElementById(id); }
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function initials(name) { return (name||'?').trim().slice(0,1).toUpperCase(); }
+function formatDist(m) {
+  if (m == null) return '';
+  if (m < 1) return 'direkt hier';
+  if (m < 1000) return Math.round(m) + 'm';
+  return (m/1000).toFixed(1) + 'km';
+}
+function timeAgo(ts) {
+  const sec = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+  if (sec < 60) return 'jetzt';
+  if (sec < 3600) return Math.floor(sec/60) + 'min';
+  if (sec < 86400) return Math.floor(sec/3600) + 'h';
+  return Math.floor(sec/86400) + 'd';
+}
+
+// ============================================================================
+// NAVIGATION
+// ============================================================================
+function navigate(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  $('view-'+view)?.classList.add('active');
+  // Update bottom nav active state
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.target === view);
+  });
+  // Show bottom nav only in main app views
+  const showNav = ['radar','inbox','matches'].includes(view);
+  $('bottom-nav').style.display = showNav ? 'flex' : 'none';
+
+  // View-specific loaders
+  if (view === 'radar') loadNearby();
+  if (view === 'inbox') loadInbox();
+  if (view === 'matches') loadMatches();
+  if (view === 'settings') renderSettings();
+  if (view === 'edit-profile') prefillEdit();
+
+  window.scrollTo(0, 0);
+}
+
+function showAuth(mode) {
+  $('view-auth').dataset.mode = mode;
+  $('auth-title').textContent = mode === 'signup' ? 'Registrieren' : 'Einloggen';
+  $('auth-sub').textContent = mode === 'signup' ? 'Mindestens 18, bitte ehrlich.' : 'Willkommen zurück.';
+  $('auth-switch').textContent = mode === 'signup' ? 'Schon dabei? Einloggen' : 'Noch keinen Account? Registrieren';
+  navigate('auth');
+}
+function toggleAuthMode(e) {
+  e.preventDefault();
+  showAuth($('view-auth').dataset.mode === 'signup' ? 'login' : 'signup');
+}
+
+// ============================================================================
+// AUTH
+// ============================================================================
+async function doAuth() {
+  const email = $('auth-email').value.trim().toLowerCase();
+  const password = $('auth-password').value;
+  const mode = $('view-auth').dataset.mode;
+  if (!email || !password) return toast('E-Mail und Passwort eingeben');
+  if (password.length < 8) return toast('Passwort min. 8 Zeichen');
+  $('auth-submit').disabled = true;
+  try {
+    if (mode === 'signup') {
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if (error) throw error;
+      if (!data.session) {
+        toast('Bestätigungs-E-Mail gesendet');
+        return;
+      }
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    }
+    await onAuthSuccess();
+  } catch (e) {
+    toast(e.message || 'Fehler');
+  } finally {
+    $('auth-submit').disabled = false;
+  }
+}
+
+async function onAuthSuccess() {
+  const { data: { user } } = await sb.auth.getUser();
+  State.user = user;
+  // Profil laden
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
+  if (!profile) {
+    navigate('onboarding');
+  } else {
+    State.profile = profile;
+    await loadPresence();
+    navigate('radar');
+    subscribeRealtime();
+  }
+}
+
+async function logout() {
+  if (State.watchId) navigator.geolocation.clearWatch(State.watchId);
+  if (State.visTimer) clearInterval(State.visTimer);
+  await sb.auth.signOut();
+  location.reload();
+}
+
+async function deleteAccount() {
+  if (!confirm('Account wirklich löschen? Das kann nicht rückgängig gemacht werden.')) return;
+  // Cascade-Delete läuft via FK on delete cascade. Auth-User muss serverseitig gelöscht werden,
+  // der Standard-Anon-Key kann das nicht. Vorerst: profile + presence löschen + abmelden.
+  await sb.from('presence').delete().eq('user_id', State.user.id);
+  await sb.from('profiles').delete().eq('id', State.user.id);
+  toast('Daten gelöscht. Auth-Eintrag bitte separat per Admin entfernen.');
+  await logout();
+}
+
+// ============================================================================
+// ONBOARDING
+// ============================================================================
+function setupPills() {
+  document.querySelectorAll('.pill-group').forEach(group => {
+    const single = group.id === 'ob-gender'; // Geschlecht ist single-select
+    group.querySelectorAll('.pill').forEach(pill => {
+      pill.onclick = () => {
+        if (single) group.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+        pill.classList.toggle('active');
+      };
+    });
+  });
+}
+function getPillValues(groupId) {
+  return [...$(groupId).querySelectorAll('.pill.active')].map(p => p.dataset.val);
+}
+function setPillValues(groupId, values) {
+  $(groupId).querySelectorAll('.pill').forEach(p => {
+    p.classList.toggle('active', values.includes(p.dataset.val));
+  });
+}
+
+async function saveOnboarding() {
+  const name = $('ob-name').value.trim();
+  const age = parseInt($('ob-age').value);
+  const bio = $('ob-bio').value.trim();
+  const gender = getPillValues('ob-gender')[0];
+  const interested = getPillValues('ob-interest');
+
+  if (name.length < 2) return toast('Name zu kurz');
+  if (!age || age < 18) return toast('Mind. 18 Jahre');
+  if (!gender) return toast('Geschlecht wählen');
+  if (!interested.length) return toast('Mindestens eine Auswahl bei "interessiert an"');
+
+  const { error } = await sb.from('profiles').insert({
+    id: State.user.id,
+    display_name: name, age, bio: bio || null, gender, interested_in: interested
+  });
+  if (error) return toast(error.message);
+
+  State.profile = { id: State.user.id, display_name: name, age, bio, gender, interested_in: interested };
+  await loadPresence();
+  navigate('radar');
+  subscribeRealtime();
+}
+
+// ============================================================================
+// PRESENCE & VISIBILITY
+// ============================================================================
+async function loadPresence() {
+  const { data } = await sb.from('presence').select('*').eq('user_id', State.user.id).maybeSingle();
+  State.presence = data;
+  updateVisibilityUI();
+}
+
+function updateVisibilityUI() {
+  const isOn = State.presence?.is_visible &&
+               State.presence?.visible_until &&
+               new Date(State.presence.visible_until) > new Date();
+  $('vis-toggle').checked = !!isOn;
+  $('vis-card').classList.toggle('on', !!isOn);
+  $('vis-status').classList.toggle('on', !!isOn);
+  $('vis-status').innerHTML = `<span class="dot"></span>${isOn ? 'Sichtbar' : 'Unsichtbar'}`;
+  if (isOn) {
+    const ms = new Date(State.presence.visible_until) - new Date();
+    const min = Math.max(0, Math.floor(ms / 60000));
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    $('vis-time').textContent = `Auto-aus in ${h}h ${m}m`;
+  } else {
+    $('vis-time').textContent = '';
+  }
+}
+
+async function toggleVisibility(on) {
+  if (!on) {
+    await sb.rpc('set_visibility', { p_visible: false });
+    if (State.watchId) { navigator.geolocation.clearWatch(State.watchId); State.watchId = null; }
+    if (State.visTimer) { clearInterval(State.visTimer); State.visTimer = null; }
+    await loadPresence();
+    $('nearby-list').innerHTML = '';
+    return;
+  }
+  // ON → Standort anfordern
+  if (!('geolocation' in navigator)) return toast('Standort wird nicht unterstützt');
+  toast('Standort wird angefragt...');
+  try {
+    const pos = await new Promise((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+    );
+    State.position = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    const { error } = await sb.rpc('set_visibility', {
+      p_visible: true, p_lat: State.position.lat, p_lng: State.position.lng
+    });
+    if (error) throw error;
+    await loadPresence();
+    startWatchingLocation();
+    if (State.visTimer) clearInterval(State.visTimer);
+    State.visTimer = setInterval(updateVisibilityUI, 30000);
+    loadNearby();
+    toast('Du bist jetzt sichtbar');
+  } catch (e) {
+    $('vis-toggle').checked = false;
+    toast('Standort verweigert oder Fehler');
+  }
+}
+
+function startWatchingLocation() {
+  if (State.watchId) navigator.geolocation.clearWatch(State.watchId);
+  State.watchId = navigator.geolocation.watchPosition(async (pos) => {
+    State.position = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    await sb.rpc('update_location', { p_lat: State.position.lat, p_lng: State.position.lng });
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 30000 });
+}
+
+// ============================================================================
+// RADAR / NEARBY
+// ============================================================================
+async function loadNearby() {
+  const list = $('nearby-list');
+  if (!State.presence?.is_visible) {
+    list.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">◉</div>
+        <h3>Noch nicht sichtbar</h3>
+        <p>Aktiviere oben die Sichtbarkeit um zu sehen, wer um dich herum auch da ist.</p>
+      </div>`;
+    return;
+  }
+  if (!State.position) return;
+  const { data, error } = await sb.rpc('find_nearby', {
+    p_lat: State.position.lat, p_lng: State.position.lng, p_radius_m: 30
+  });
+  if (error) { console.error(error); return; }
+  if (!data || !data.length) {
+    list.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">·</div>
+        <h3>Niemand in der Nähe</h3>
+        <p>Im 30m-Radius ist gerade niemand sichtbar. Bewegung hilft.</p>
+      </div>`;
+    return;
+  }
+  list.innerHTML = data.map(p => `
+    <div class="person-card" onclick='openActions(${JSON.stringify(p).replace(/'/g, "&#39;")})'>
+      <div class="avatar"${p.photo_url ? ` style="background-image:url('${escapeHtml(p.photo_url)}')"` : ''}>${p.photo_url ? '' : escapeHtml(initials(p.display_name))}</div>
+      <div class="person-info">
+        <div class="person-name">${escapeHtml(p.display_name)}, ${p.age}</div>
+        <div class="person-meta">${formatDist(p.distance_m)}</div>
+        ${p.bio ? `<div class="person-bio">${escapeHtml(p.bio)}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ============================================================================
+// ACTION MODAL (poke / save / drink)
+// ============================================================================
+function openActions(person) {
+  State.currentTarget = person;
+  $('modal-name').textContent = `${person.display_name}, ${person.age}`;
+  $('modal-meta').textContent = formatDist(person.distance_m);
+  $('modal-bio').textContent = person.bio || '';
+  const av = $('modal-avatar');
+  if (person.photo_url) {
+    av.style.backgroundImage = `url('${person.photo_url}')`;
+    av.textContent = '';
+  } else {
+    av.style.backgroundImage = '';
+    av.textContent = initials(person.display_name);
+  }
+  $('modal-action').classList.add('active');
+}
+function closeModal(id) { $(id).classList.remove('active'); }
+
+async function performShot(type) {
+  const target = State.currentTarget;
+  if (!target) return;
+  const expiresAt = new Date(Date.now() + (type === 'save' ? 24 : 1) * 3600 * 1000).toISOString();
+  const payload = {
+    from_user_id: State.user.id,
+    to_user_id: target.user_id,
+    shot_type: type,
+    expires_at: expiresAt,
+    amount_cents: type === 'drink' ? 500 : null
+  };
+  const { error } = await sb.from('shots').insert(payload);
+  closeModal('modal-action');
+  if (error) return toast(error.message);
+  toast(type === 'poke' ? 'Angestupst!' : type === 'save' ? '24h gespeichert' : 'Drink gesendet (Demo)');
+}
+
+// ============================================================================
+// INBOX
+// ============================================================================
+async function loadInbox() {
+  const me = State.user.id;
+
+  // Eingehend
+  const { data: incoming } = await sb.from('shots')
+    .select('*, profile:from_user_id(display_name, age, photo_url, bio)')
+    // Anmerkung: Falls FK-Join nicht klappt, holen wir Profile separat (siehe unten)
+    .eq('to_user_id', me).eq('status', 'pending')
+    .order('created_at', { ascending: false }).limit(50);
+
+  // Falls embed nicht geht weil FK fehlt: alternative Query
+  let inc = incoming;
+  if (!inc) {
+    const { data: raw } = await sb.from('shots').select('*')
+      .eq('to_user_id', me).eq('status', 'pending')
+      .order('created_at', { ascending: false }).limit(50);
+    inc = raw || [];
+    const ids = [...new Set(inc.map(s => s.from_user_id))];
+    if (ids.length) {
+      const { data: profs } = await sb.from('profiles').select('id, display_name, age, photo_url, bio').in('id', ids);
+      const map = Object.fromEntries((profs||[]).map(p => [p.id, p]));
+      inc.forEach(s => { s.profile = map[s.from_user_id]; });
+    }
+  }
+
+  const incDiv = $('inbox-incoming');
+  if (!inc?.length) {
+    incDiv.innerHTML = `<p class="dim small">Keine eingehenden Shots.</p>`;
+  } else {
+    incDiv.innerHTML = inc.map(s => renderIncomingShot(s)).join('');
+  }
+
+  // Ausgehend
+  const { data: outgoing } = await sb.from('shots').select('*')
+    .eq('from_user_id', me).order('created_at', { ascending: false }).limit(50);
+  const outIds = [...new Set((outgoing||[]).map(s => s.to_user_id))];
+  let toMap = {};
+  if (outIds.length) {
+    const { data: profs } = await sb.from('profiles').select('id, display_name, age, photo_url').in('id', outIds);
+    toMap = Object.fromEntries((profs||[]).map(p => [p.id, p]));
+  }
+  $('inbox-outgoing').innerHTML = (outgoing||[]).length
+    ? outgoing.map(s => renderOutgoingShot(s, toMap[s.to_user_id])).join('')
+    : `<p class="dim small">Du hast noch keinen Shot abgegeben.</p>`;
+
+  updateBadges(inc?.length || 0);
+}
+
+function shotLabel(t) { return t === 'poke' ? 'Anstupser' : t === 'save' ? 'Gemerkt' : 'Drink'; }
+
+function renderIncomingShot(s) {
+  const p = s.profile || { display_name: '?', age: '' };
+  const exp = timeAgo(s.expires_at);
+  return `
+    <div class="shot-card">
+      <span class="shot-type ${s.shot_type}">${shotLabel(s.shot_type)}</span>
+      <div class="row" style="gap:12px">
+        <div class="avatar"${p.photo_url ? ` style="background-image:url('${escapeHtml(p.photo_url)}')"` : ''}>${p.photo_url ? '' : escapeHtml(initials(p.display_name))}</div>
+        <div style="flex:1">
+          <div style="font-weight:600">${escapeHtml(p.display_name)}${p.age ? ', ' + p.age : ''}</div>
+          ${s.shot_type === 'drink' && s.amount_cents ? `<div class="small dim">Will dir einen Drink für ${(s.amount_cents/100).toFixed(2)}€ ausgeben</div>` : ''}
+          ${p.bio ? `<div class="person-bio">${escapeHtml(p.bio)}</div>` : ''}
+          <div class="small faint mono">läuft in ${timeAgo(s.expires_at).replace('jetzt','gleich')} ab</div>
+        </div>
+      </div>
+      <div class="shot-actions">
+        <button class="btn full" onclick="respondShot('${s.id}','accepted')">Annehmen</button>
+        <button class="btn ghost full" onclick="respondShot('${s.id}','declined')">Ablehnen</button>
+      </div>
+    </div>`;
+}
+function renderOutgoingShot(s, p) {
+  p = p || { display_name: '?' };
+  const statusLabel = { pending: 'wartet', accepted: 'angenommen', declined: 'abgelehnt', expired: 'abgelaufen' }[s.status];
+  return `
+    <div class="shot-card">
+      <span class="shot-type ${s.shot_type}">${shotLabel(s.shot_type)}</span>
+      <div class="row" style="gap:12px">
+        <div class="avatar"${p.photo_url ? ` style="background-image:url('${escapeHtml(p.photo_url)}')"` : ''}>${p.photo_url ? '' : escapeHtml(initials(p.display_name))}</div>
+        <div style="flex:1">
+          <div style="font-weight:600">${escapeHtml(p.display_name)}</div>
+          <div class="small dim mono">Status: ${statusLabel}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function respondShot(id, status) {
+  const { error } = await sb.from('shots').update({ status }).eq('id', id);
+  if (error) return toast(error.message);
+  toast(status === 'accepted' ? 'Match!' : 'Abgelehnt');
+  loadInbox();
+}
+
+// ============================================================================
+// MATCHES & CHAT
+// ============================================================================
+async function loadMatches() {
+  const me = State.user.id;
+  const { data: matches } = await sb.from('matches').select('*')
+    .or(`user_a_id.eq.${me},user_b_id.eq.${me}`)
+    .order('last_message_at', { ascending: false, nullsFirst: false });
+  if (!matches?.length) {
+    $('match-list').innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">✉</div>
+        <h3>Noch keine Chats</h3>
+        <p>Wenn jemand deinen Shot annimmt, taucht der Chat hier auf.</p>
+      </div>`;
+    updateBadges(null, 0);
+    return;
+  }
+  const partnerIds = matches.map(m => m.user_a_id === me ? m.user_b_id : m.user_a_id);
+  const { data: profs } = await sb.from('profiles').select('id, display_name, age, photo_url').in('id', partnerIds);
+  const profMap = Object.fromEntries((profs||[]).map(p => [p.id, p]));
+
+  // Letzte Nachricht je Match
+  const ids = matches.map(m => m.id);
+  const { data: lastMsgs } = await sb.from('messages').select('match_id, body, created_at, from_user_id')
+    .in('match_id', ids).order('created_at', { ascending: false });
+  const lastMap = {};
+  (lastMsgs||[]).forEach(m => { if (!lastMap[m.match_id]) lastMap[m.match_id] = m; });
+
+  $('match-list').innerHTML = matches.map(m => {
+    const partnerId = m.user_a_id === me ? m.user_b_id : m.user_a_id;
+    const p = profMap[partnerId] || { display_name: '?', age: '' };
+    const last = lastMap[m.id];
+    return `
+      <div class="person-card" onclick="openChat('${m.id}','${partnerId}')">
+        <div class="avatar"${p.photo_url ? ` style="background-image:url('${escapeHtml(p.photo_url)}')"` : ''}>${p.photo_url ? '' : escapeHtml(initials(p.display_name))}</div>
+        <div class="person-info">
+          <div class="person-name">${escapeHtml(p.display_name)}${p.age ? ', ' + p.age : ''}</div>
+          <div class="last-msg">${last ? escapeHtml(last.body) : '<em class="faint">Noch keine Nachrichten</em>'}</div>
+        </div>
+        ${last ? `<div class="small mono faint">${timeAgo(last.created_at)}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+async function openChat(matchId, partnerId) {
+  const { data: partner } = await sb.from('profiles').select('*').eq('id', partnerId).single();
+  State.currentMatch = { id: matchId, partnerId, partnerName: partner?.display_name, partnerPhoto: partner?.photo_url };
+  $('chat-name').textContent = partner?.display_name || '?';
+  $('chat-meta').textContent = partner?.age ? `${partner.age}` : '';
+  const av = $('chat-avatar');
+  if (partner?.photo_url) {
+    av.style.backgroundImage = `url('${partner.photo_url}')`;
+    av.textContent = '';
+  } else {
+    av.style.backgroundImage = '';
+    av.textContent = initials(partner?.display_name);
+  }
+  navigate('chat');
+  await loadMessages();
+  subscribeMessages(matchId);
+}
+
+async function loadMessages() {
+  const { data } = await sb.from('messages').select('*')
+    .eq('match_id', State.currentMatch.id).order('created_at', { ascending: true }).limit(200);
+  const me = State.user.id;
+  $('chat-messages').innerHTML = (data||[]).map(m => `
+    <div class="msg ${m.from_user_id === me ? 'me' : 'them'}">
+      ${escapeHtml(m.body)}
+      <div class="msg-time">${timeAgo(m.created_at)}</div>
+    </div>
+  `).join('');
+  const c = $('chat-messages');
+  c.scrollTop = c.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = $('chat-input');
+  const body = input.value.trim();
+  if (!body || !State.currentMatch) return;
+  input.value = '';
+  const { error } = await sb.from('messages').insert({
+    match_id: State.currentMatch.id, from_user_id: State.user.id, body
+  });
+  if (error) return toast(error.message);
+  loadMessages();
+}
+
+function subscribeMessages(matchId) {
+  if (State.msgChannel) sb.removeChannel(State.msgChannel);
+  State.msgChannel = sb.channel('chat:'+matchId)
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'messages', filter: `match_id=eq.${matchId}` },
+      () => loadMessages())
+    .subscribe();
+}
+
+function reportPartner() {
+  if (!confirm(`${State.currentMatch.partnerName} melden und blockieren?`)) return;
+  const reason = prompt('Grund (kurz):') || 'unangemessen';
+  Promise.all([
+    sb.from('reports').insert({ reporter_id: State.user.id, reported_id: State.currentMatch.partnerId, reason }),
+    sb.from('blocks').insert({ blocker_id: State.user.id, blocked_id: State.currentMatch.partnerId })
+  ]).then(() => {
+    toast('Gemeldet & blockiert');
+    navigate('matches');
+  });
+}
+
+// ============================================================================
+// REALTIME for shots / matches (badges)
+// ============================================================================
+function subscribeRealtime() {
+  sb.channel('user:'+State.user.id)
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'shots', filter: `to_user_id=eq.${State.user.id}` },
+      () => { toast('Neuer Shot!'); loadInboxBadge(); })
+    .on('postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'shots', filter: `from_user_id=eq.${State.user.id}` },
+      (payload) => {
+        if (payload.new.status === 'accepted') toast(`Dein Shot wurde angenommen!`);
+        loadInboxBadge();
+      })
+    .subscribe();
+  loadInboxBadge();
+}
+
+async function loadInboxBadge() {
+  const { count } = await sb.from('shots').select('*', { count: 'exact', head: true })
+    .eq('to_user_id', State.user.id).eq('status', 'pending');
+  updateBadges(count || 0);
+}
+
+function updateBadges(inboxCount, chatCount) {
+  if (inboxCount != null) {
+    const b = $('badge-inbox');
+    b.style.display = inboxCount > 0 ? 'inline-block' : 'none';
+    b.textContent = inboxCount;
+  }
+  if (chatCount != null) {
+    const b = $('badge-chats');
+    b.style.display = chatCount > 0 ? 'inline-block' : 'none';
+    b.textContent = chatCount;
+  }
+}
+
+// ============================================================================
+// SETTINGS
+// ============================================================================
+function renderSettings() {
+  if (!State.profile) return;
+  $('set-name').textContent = `${State.profile.display_name}, ${State.profile.age}`;
+  $('set-meta').textContent = State.profile.bio || '';
+  $('set-email').textContent = State.user.email;
+  const av = $('set-avatar');
+  if (State.profile.photo_url) { av.style.backgroundImage = `url('${State.profile.photo_url}')`; av.textContent = ''; }
+  else { av.textContent = initials(State.profile.display_name); }
+  const isOn = State.presence?.is_visible &&
+               State.presence?.visible_until &&
+               new Date(State.presence.visible_until) > new Date();
+  $('set-vis-status').textContent = isOn ? 'AN' : 'AUS';
+}
+
+function prefillEdit() {
+  if (!State.profile) return;
+  $('ep-name').value = State.profile.display_name;
+  $('ep-age').value = State.profile.age;
+  $('ep-bio').value = State.profile.bio || '';
+  setPillValues('ep-interest', State.profile.interested_in || []);
+}
+
+async function saveProfileEdits() {
+  const name = $('ep-name').value.trim();
+  const age = parseInt($('ep-age').value);
+  const bio = $('ep-bio').value.trim();
+  const interested = getPillValues('ep-interest');
+  if (name.length < 2 || !age || !interested.length) return toast('Felder prüfen');
+  const { error } = await sb.from('profiles').update({
+    display_name: name, age, bio: bio || null, interested_in: interested, updated_at: new Date().toISOString()
+  }).eq('id', State.user.id);
+  if (error) return toast(error.message);
+  State.profile = { ...State.profile, display_name: name, age, bio, interested_in: interested };
+  toast('Gespeichert');
+  navigate('settings');
+}
+
+// ============================================================================
+// INIT
+// ============================================================================
+async function init() {
+  setupPills();
+  // Modal close on overlay click
+  document.querySelectorAll('.modal-overlay').forEach(m => {
+    m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('active'); });
+  });
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    State.user = session.user;
+    await onAuthSuccess();
+  } else {
+    navigate('landing');
+  }
+}
+init();
+
+// Auf "Tab wieder offen" Sichtbarkeits-UI aktualisieren
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && State.user) loadPresence();
+});
+</script>
+</body>
+</html>
