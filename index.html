@@ -508,10 +508,9 @@
       </p>
     </div>
 
-    <div class="row" style="margin: 8px 4px 16px;">
-      <h3>In der Nähe</h3>
-      <span class="spacer"></span>
-      <button class="btn-ico" onclick="loadNearby()" title="Aktualisieren">↻</button>
+    <div class="row" style="margin: 8px 4px 16px; gap: 12px;">
+      <h3 style="flex:1">In der Nähe</h3>
+      <button class="btn ghost" onclick="loadNearby()" style="padding: 10px 16px; font-size: 0.75rem;">↻ Aktualisieren</button>
     </div>
 
     <div id="nearby-list"></div>
@@ -720,6 +719,7 @@ const State = {
   position: null, // { lat, lng }
   watchId: null,
   visTimer: null,
+  refreshTimer: null, // Auto-refresh für Radar
   currentMatch: null, // { id, partnerId, partnerName, partnerPhoto }
   currentTarget: null, // user object opened in action modal
   msgChannel: null,
@@ -767,6 +767,14 @@ function navigate(view) {
   // Show bottom nav only in main app views
   const showNav = ['radar','inbox','matches'].includes(view);
   $('bottom-nav').style.display = showNav ? 'flex' : 'none';
+
+  // Auto-Refresh nur auf Radar-Seite aktiv (alle 15 Sekunden)
+  if (State.refreshTimer) { clearInterval(State.refreshTimer); State.refreshTimer = null; }
+  if (view === 'radar') {
+    State.refreshTimer = setInterval(() => {
+      if (State.presence?.is_visible) loadNearby();
+    }, 15000);
+  }
 
   // View-specific loaders
   if (view === 'radar') loadNearby();
