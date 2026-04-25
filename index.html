@@ -984,7 +984,7 @@ async function loadNearby() {
   }
   if (!State.position) return;
   const { data, error } = await sb.rpc('find_nearby', {
-    p_lat: State.position.lat, p_lng: State.position.lng, p_radius_m: 30
+    p_lat: State.position.lat, p_lng: State.position.lng, p_radius_m: 5000
   });
   if (error) { console.error(error); return; }
   if (!data || !data.length) {
@@ -992,7 +992,7 @@ async function loadNearby() {
       <div class="empty">
         <div class="empty-icon">·</div>
         <h3>Niemand in der Nähe</h3>
-        <p>Im 30m-Radius ist gerade niemand sichtbar. Bewegung hilft.</p>
+        <p>Im 5km-Radius (Test-Modus) ist gerade niemand sichtbar.</p>
       </div>`;
     return;
   }
