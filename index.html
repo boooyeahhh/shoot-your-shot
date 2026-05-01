@@ -1780,20 +1780,49 @@ async function confirmVibe() {
 }
 
 async function activateVisibility(vibe) {
-  if (!('geolocation' in navigator)) return toast('Standort wird nicht unterstützt');
+  if (!('geolocation' in navigator)) return toast('Standort wird auf diesem Gerät nicht unterstützt');
   toast('Standort wird angefragt...');
+  let pos;
   try {
-    const pos = await new Promise((resolve, reject) =>
-      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+    pos = await new Promise((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: false,
+        timeout: 30000,
+        maximumAge: 60000
+      })
     );
-    State.position = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  } catch (geoErr) {
+    $('vis-toggle').checked = false;
+    if (geoErr.code === 1) {
+      toast('Standort blockiert — in Safari: AA → Website-Einstellungen → Standort: Erlauben');
+      $('nearby-list').innerHTML = `
+        <div class="empty">
+          <div class="empty-mark">!</div>
+          <h3>Standort <em>blockiert</em></h3>
+          <p>Tippe auf <strong>AA</strong> links in der Adresszeile → Website-Einstellungen → Standort: Erlauben. Dann nochmal versuchen.</p>
+        </div>`;
+    } else if (geoErr.code === 3) {
+      toast('Timeout — nochmal versuchen');
+    } else {
+      toast('Geo-Fehler Code ' + geoErr.code);
+    }
+    console.error('Geo error:', geoErr.code, geoErr.message);
+    return;
+  }
+  State.position = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  try {
     const { error } = await sb.rpc('set_visibility', {
       p_visible: true,
       p_lat: State.position.lat,
       p_lng: State.position.lng,
       p_vibe: vibe
     });
-    if (error) throw error;
+    if (error) {
+      console.error('set_visibility error:', error);
+      toast('DB-Fehler: ' + error.message);
+      $('vis-toggle').checked = false;
+      return;
+    }
     await loadPresence();
     startWatchingLocation();
     if (State.visTimer) clearInterval(State.visTimer);
@@ -1802,7 +1831,7 @@ async function activateVisibility(vibe) {
     toast('Du bist sichtbar — viel Erfolg.');
   } catch (e) {
     $('vis-toggle').checked = false;
-    toast('Standort verweigert');
+    toast('Fehler: ' + (e.message || 'unbekannt'));
     console.error(e);
   }
 }
